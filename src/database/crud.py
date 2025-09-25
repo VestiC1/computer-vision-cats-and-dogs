@@ -51,9 +51,36 @@ def insert_monitoring(time, succes):
         conn.add(monitoring)
         conn.commit()
 
+def create_initial_feedback(prob_cat: float, prob_dog: float) -> Feedback:
+    """Crée une entrée de feedback initiale (sans avis utilisateur)."""
+    global engine
+    feedback = Feedback(
+        feed_back_value=0,  # 0 = pas de feedback
+        prob_cat=prob_cat,
+        prob_dog=prob_dog,
+        last_modified=get_utc_timestamp(),
+    )
+    with Session(engine) as conn:
+        conn.add(feedback)
+        conn.commit()
+        conn.refresh(feedback)
+        return feedback
+
+def update_feedback(feedback_id: int, feedback_value: int):
+    """Met à jour le feedback utilisateur (1=Oui, 2=Non)."""
+    global engine
+    with Session(engine) as conn:
+        feedback = conn.get(Feedback, feedback_id)
+        if feedback:
+            feedback.feed_back_value = feedback_value
+            feedback.last_modified = get_utc_timestamp()
+            conn.commit()
+            return feedback
+    return None 
+
 
 if __name__ == "__main__":
-    #create_tables()
+    create_tables()
     #insert_feedback(1, 2, 0.7, 0.3)
     #insert_monitoring(1, 2.5, True)
     pass

@@ -125,8 +125,24 @@ document.getElementById('predictionForm').addEventListener('submit', async funct
                             🐶 Chien: ${data.probabilities.dog}
                         </div>
                     </div>
+                    <div class="mt-3 p-3" style="background-color: #f8f9fa; border-radius: 5px;">
+                        <h6>La prédiction est-elle correcte ?</h6>
+                        <div id="feedbackFormContainer">
+                            <form id="feedbackForm" class="d-flex gap-2">
+                                <input type="hidden" name="feedback_id" value="${data.feedback_id}">
+                                <button type="submit" name="feedback_value" value="1" class="btn btn-sm" style="border: 1px solid #28a745; color: #28a745; background-color: white;">
+                                    ✅ Oui
+                                </button>
+                                <button type="submit" name="feedback_value" value="2" class="btn btn-sm" style="border: 1px solid #dc3545; color: #dc3545; background-color: white;">
+                                    ❌ Non
+                                </button>
+                            </form>
+                            <div id="feedbackConfirmation" class="mt-2 text-muted" style="font-size: 0.875rem; text-align: center;"></div>
+                        </div>
+                    </div>
                 </div>
             `;
+
         } else {
             result.innerHTML = `
                 <div class="alert alert-danger">
@@ -150,6 +166,42 @@ document.getElementById('predictionForm').addEventListener('submit', async funct
     
     loading.style.display = 'none';
     predictBtn.disabled = false;
+});
+
+document.addEventListener('click', async function(e) {
+    if (e.target.closest('#feedbackForm button')) {
+        e.preventDefault();
+        const button = e.target;
+        const form = button.closest('#feedbackForm');
+        const feedbackId = form.querySelector('input[name="feedback_id"]').value;
+        const feedbackValue = button.getAttribute('value');
+
+        try {
+            const response = await fetch('/api/feedback', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    feedback_id: feedbackId,
+                    feedback_value: parseInt(feedbackValue),
+                }),
+            });
+
+            if (response.ok) {
+                // Désactive les boutons
+                form.querySelectorAll('button').forEach(btn => {
+                    btn.disabled = true;
+                });
+                // Affiche le message de confirmation
+                document.getElementById('feedbackConfirmation').textContent = 'Feedback pris en compte ✅';
+            } else {
+                alert('Erreur lors de l\'enregistrement.');
+            }
+        } catch (error) {
+            alert('Erreur de connexion.');
+        }
+    }
 });
 </script>
 {% endblock %}
