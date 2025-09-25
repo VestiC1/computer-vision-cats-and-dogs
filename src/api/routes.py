@@ -11,7 +11,8 @@ sys.path.insert(0, str(ROOT_DIR))
 
 from .auth import verify_token
 from src.models.predictor import CatDogPredictor
-from src.monitoring.metrics import time_inference, log_inference_time
+from src.monitoring.metrics import time_inference
+from src.database.crud import create_initial_feedback, update_feedback
 
 # Configuration des templates
 TEMPLATES_DIR = ROOT_DIR / "src" / "web" / "templates"
@@ -56,12 +57,11 @@ async def inference_page(request: Request):
     })
 
 @router.post("/api/predict")
-@time_inference  # Le décorateur s'occupe du logging
+@time_inference
 async def predict_api(
     file: UploadFile = File(...),
     token: str = Depends(verify_token)
 ):
-    """API de prédiction avec monitoring en base de données."""
     if not predictor.is_loaded():
         raise HTTPException(status_code=503, detail="Modèle non disponible")
 
@@ -72,22 +72,44 @@ async def predict_api(
         image_data = await file.read()
         result = predictor.predict(image_data)
 
+        # Crée un feedback initial dans la base
+        feedback = create_initial_feedback(
+            prob_cat=result['probabilities']['cat'],
+            prob_dog=result['probabilities']['dog'],
+        )
+
         response_data = {
             "filename": file.filename,
             "prediction": result["prediction"],
             "confidence": f"{result['confidence']:.2%}",
             "probabilities": {
-                "cat": f"{result['probabilities']['cat']:.2%}",
-                "dog": f"{result['probabilities']['dog']:.2%}"
-            }
+                "cat": result['probabilities']['cat'],
+                "dog": result['probabilities']['dog'],
+            },
+            "feedback_id": feedback.id,  # Retourne l'ID du feedback pour la mise à jour
         }
-
-        # Le décorateur @time_inference s'occupe du logging
         return response_data
 
     except Exception as e:
-        # Le décorateur @time_inference logge automatiquement les erreurs
         raise HTTPException(status_code=500, detail=f"Erreur de prédiction: {str(e)}")
+
+@router.post("/api/feedback")
+async def save_feedback(request: Request):
+    """Met à jour le feedback utilisateur."""
+    data = await request.json()
+    feedback_id = data.get('feedback_id')
+    feedback_value = data.get('feedback_value')
+
+    if not feedback_id or feedback_value not in [1, 2]:
+        raise HTTPException(status_code=400, detail="Données invalides")
+
+    try:
+        feedback = update_feedback(feedback_id, feedback_value)
+        if not feedback:
+            raise HTTPException(status_code=404, detail="Feedback non trouvé")
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/api/info")
 async def api_info():
