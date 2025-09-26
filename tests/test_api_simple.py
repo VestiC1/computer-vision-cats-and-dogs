@@ -29,6 +29,21 @@ def test_quick_api_health():
     except requests.exceptions.RequestException as e:
         pytest.fail(f"API non accessible: {e}")
 
+def test_api_info_endpoint():
+    """Test le endpoint /api/info pour vérifier la version de l'API"""
+    try:
+        response = requests.get(f"{BASE_URL}/api/info", timeout=5)
+        assert response.status_code == 200
+
+        data = response.json()
+        assert "version" in data
+        assert data["version"] == "1.0.0"  # Vérifie que la version est correcte
+        print(f"\nVersion de l'API: {data.get('version', 'inconnue')}")
+        print(f"Modèle chargé: {data.get('model_loaded', False)}")
+
+    except requests.exceptions.RequestException as e:
+        pytest.fail(f"Impossible d'accéder à /api/info: {e}")
+
 # Permet l'exécution directe du fichier
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "-s"])
