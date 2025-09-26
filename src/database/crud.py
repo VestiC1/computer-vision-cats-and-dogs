@@ -42,10 +42,10 @@ def insert_feedback(id, value, prob_cat, prob_dog):
         conn.add(feedback)
         conn.commit()
 
-def insert_monitoring(time, succes):
+def insert_monitoring(feedback_id, time, succes):
     global engine
 
-    monitoring = Monitoring(timestamp=get_utc_timestamp(), inference_time=time, succes=succes)
+    monitoring = Monitoring(feedback_id=feedback_id,timestamp=get_utc_timestamp(), inference_time=time, succes=succes)
 
     with Session(engine) as conn:
         conn.add(monitoring)

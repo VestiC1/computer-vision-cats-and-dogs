@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 import sys
 from pathlib import Path
-import time
+
 
 # Ajouter le répertoire racine au path
 ROOT_DIR = Path(__file__).parent.parent.parent
@@ -57,7 +57,7 @@ async def inference_page(request: Request):
     })
 
 @router.post("/api/predict")
-@time_inference
+@time_inference  # Le décorateur va gérer le logging
 async def predict_api(
     file: UploadFile = File(...),
     token: str = Depends(verify_token)
@@ -72,7 +72,7 @@ async def predict_api(
         image_data = await file.read()
         result = predictor.predict(image_data)
 
-        # Crée un feedback initial dans la base
+        # Crée un feedback initial
         feedback = create_initial_feedback(
             prob_cat=result['probabilities']['cat'],
             prob_dog=result['probabilities']['dog'],
@@ -86,10 +86,9 @@ async def predict_api(
                 "cat": result['probabilities']['cat'],
                 "dog": result['probabilities']['dog'],
             },
-            "feedback_id": feedback.id,  # Retourne l'ID du feedback pour la mise à jour
+            "feedback_id": feedback.id,
         }
         return response_data
-
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur de prédiction: {str(e)}")
 

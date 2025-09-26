@@ -2,12 +2,13 @@ import time
 from functools import wraps
 from src.database.crud import insert_monitoring
 
-def log_inference_time(inference_time_ms: float, success: bool = True):
+def log_inference_time(feedback_id, inference_time_ms: float, success: bool = True):
     """Enregistrer une métrique d'inférence dans la base de données."""
     # Convertir le temps en secondes (optionnel, selon ton besoin)
     inference_time_sec = inference_time_ms / 1000.0
     # Insérer directement dans la base de données
     insert_monitoring(
+        feedback_id=feedback_id,
         time=inference_time_sec,
         succes=success
     )
@@ -17,32 +18,30 @@ def time_inference(func):
     @wraps(func)
     async def wrapper(*args, **kwargs):
         start_time = time.perf_counter()
-
         try:
             result = await func(*args, **kwargs)
             end_time = time.perf_counter()
-
-            # Calculer le temps en millisecondes
             inference_time_ms = (end_time - start_time) * 1000
 
-            # Logger le succès
+            # Récupère feedback_id depuis le résultat
+            feedback_id = None
+            if isinstance(result, dict) and "feedback_id" in result:
+                feedback_id = result["feedback_id"]
+
+            # Logger le succès avec feedback_id
             log_inference_time(
                 inference_time_ms=inference_time_ms,
-                success=True
+                success=True,
+                feedback_id=feedback_id  # ← Passe feedback_id
             )
-
             return result
-
         except Exception as e:
             end_time = time.perf_counter()
             inference_time_ms = (end_time - start_time) * 1000
-
-            # Logger l'échec
             log_inference_time(
                 inference_time_ms=inference_time_ms,
-                success=False
+                success=False,
+                feedback_id=None
             )
-
             raise e
-
     return wrapper
